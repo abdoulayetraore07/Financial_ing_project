@@ -75,32 +75,31 @@ def simuler_W(nb_simul, T=2, barriere = False, delta = 1/52):
 
             gaussien_w.append(W_1)
             gaussien_w.append(W_2)
-        return mt.sqrt(T)*np.array(gaussien_w)
+            
+        return np.array(gaussien_w)
     
     else:
 
         N_delta = mt.floor(T/delta)
         T = [(i+1)*delta for i in range(N_delta)] 
-        
+
         G = np.random.normal(0,1,(N_delta,nb_simul))
         Gamma = np.zeros((N_delta, N_delta))
-        Id = np.zeros((N_delta, N_delta))
+        I = np.zeros((N_delta, N_delta))
 
         for i in range(N_delta):
             Gamma[i, i:N_delta] = T[i]
-            Id[i,i] =  T[i]
+            I[i,i] =  T[i]
             
-        Gamma = Gamma + Gamma.T  - Id
-
+        Gamma = Gamma + Gamma.T  - I
         A = cholesky(Gamma)
-        
         gaussien_w = np.dot(A,G)
 
-        return gaussien_w
+        return gaussien_w.T
 
 
 
-def calcul_P_euro(nb_simul, barriere=False, So=1, r=0.015, T=2, sigma=0.15, K=1, alph = 0.1, delta = 1/52, B = 0.7):
+def calcul_P_euro(nb_simul, barriere=False, S0=1, r=0.015, T=2, sigma=0.15, K=1, alph = 0.1, delta = 1/52, B = 0.7, m_covariance = True):
     
     """
     Calcul du prix d'une option européenne PUT avec intervalle de confiance
@@ -121,116 +120,127 @@ def calcul_P_euro(nb_simul, barriere=False, So=1, r=0.015, T=2, sigma=0.15, K=1,
    
 
     if not barriere :
-       
-       x1 = (1/sigma*mt.sqrt(T))*(mt.log(K/So) - (r-(sigma**2/2))*T)
-       prix_theorique = mt.exp(-r*T)*K*fonction_repart(x1) - So*fonction_repart(x1-sigma*mt.sqrt(T))
-       
-       # Simulation des trajectoires ( valeurs terminales )
-       gaussien_w_T = simuler_W(nb_simul, T=2)
-       #plot_graph(gaussien_w_T)
+        
+       # Simulation des trajectoires ( valeurs terminales T )
+       G = simuler_W(nb_simul, T=2)
        
        #Calcul du prix St de l'option
-       ST = So * np.exp( (r - (sigma**2)/2) * T + sigma *gaussien_w_T )
+       S = S0 * np.exp( (r - (sigma**2)/2) * T + sigma *np.sqrt(T)*G)
 
        # Calcul des payoffs
-       Y = np.maximum(0, K - ST)
-    
-       # Prix actualisé de l'option
-       P_euro = np.mean(Y) * np.exp(-r*T)
+       payoff = np.exp(-r*T)*np.maximum(0, K - S) 
 
-       # Calcul de la variance de Monte Carlo
-       sigma_Y = (1 / (nb_simul - 1)) * sum((Y_j - np.mean(Y))**2 for Y_j in Y) 
-
-       # Utilisation de la loi de Student 
-       ddl = nb_simul - 1  # degrés de liberté
-       t_value = stats.t.ppf(1 - alph/2, ddl)
-        
-       # Erreur standard
-       std_error = np.sqrt(sigma_Y / nb_simul)
-        
-       # Intervalle de confiance
-       IC_bas  = (np.mean(Y) - t_value * std_error)* np.exp(-r*T)
-       IC_haut = (np.mean(Y) + t_value * std_error)* np.exp(-r*T)
-
-       print(f"\nPrix de l'option PUT européenne : {P_euro:.4f} pour {nb_simul} trajectoires")
-       print(f"Intervalle de confiance à {(1-alph)*100}%: [{IC_bas:.4f}, {IC_haut:.4f}]")
-       print(f"Prix théorique de l'option PUT européenne: {prix_theorique:.4f}\n")
-    
     else :
        
-       # Calculs des parametres de discretisation
-       N_delta = mt.floor(T/delta)
+        # Calculs des parametres de discretisation
+        N_delta = mt.floor(T/delta)
       
-       # Simulation des trajectoires ( valeurs terminales )
-       gaussien_w_T_i = simuler_W(nb_simul, T=2, barriere = True, delta = delta)
-
-       gaussien_w_T   = gaussien_w_T_i[N_delta-1, :]
-       
-       #Calcul du prix St de l'option
-       ST = So * np.exp( (r - (sigma**2)/2) * T + sigma *gaussien_w_T )
-
-       for i in range(nb_simul):
-            #Calcul du prix St de l'option
-            ST_i = So * np.exp( (r - (sigma**2)/2) * T + sigma *gaussien_w_T_i[:,i])
-            if np.min(ST_i) < B :
-                ST[i] = K
+        if not m_covariance :
+            
+            #Calcul des réalistions de St pour N_delta instances du brownien et nb_simul simulations 
+            G = np.random.normal(0,1,(nb_simul, N_delta))
+            LR = (r-sigma**2/2)*delta + sigma*np.sqrt(delta)*G
+            #LR = np.concatenate((np.ones((nb_simul,1))*np.log(S0), LR), axis = 1) On enlève car dans la formule on tient compte que des temps T1, ,TN_delta : pas de S0
                 
+            log_path = np.cumsum(LR, axis=1)
+            
+            #Obtention des trajectoires 
+            S_path  = np.exp(log_path)
         
+        else :
+            #Calcul des réalistions de W_t pour N_delta instances du brownien et nb_simul simulations 
+            gaussien_W_path = simuler_W(nb_simul, T=2, barriere = True, delta = delta)
+
+            #Obtention des trajectoires 
+            S_path  = S0 * np.exp( (r - (sigma**2)/2) * T + sigma*gaussien_W_path )
         
-       # Calcul des payoffs
-       Y = np.maximum(0, K - ST)
+        #Obtention du vecteur des mins sur chaque trajectoire 
+        S_path_min  = np.min(S_path, axis = 1)
+          
+        # Calcul des payoffs
+        payoff = np.exp(-r*T)*np.maximum(0, K - S_path[:,-1])*(S_path_min>=B)
+
+
+    #ESTIMATION GLOBLALE DU PRIX DE L'OPTION PAR MONTE-CARLO
+
+    # Prix estimé de l'option via MC
+    MC_price = np.mean(payoff)
+
+    # Calcul de la variance de Monte Carlo
+    sigma_payoff = (1 / (nb_simul - 1)) * sum((Y_j - MC_price)**2 for Y_j in payoff) 
+
+    # Utilisation de la loi de Student 
+    ddl = nb_simul - 1  # degrés de liberté
+    t_value = stats.t.ppf(1 - alph/2, ddl)
     
-       # Prix actualisé de l'option
-       P_euro = np.mean(Y) * np.exp(-r*T)
+    # Erreur standard
+    std_error = np.sqrt(sigma_payoff/ nb_simul)
+    
+    # Intervalle de confiance
+    IC_bas  = MC_price - t_value * std_error
+    IC_haut = MC_price + t_value * std_error
 
-       # Calcul de la variance de Monte Carlo
-       sigma_Y = (1 / (nb_simul - 1)) * sum((Y_j - np.mean(Y))**2 for Y_j in Y) 
+    print(f"\nPrix de l'option PUT européenne par MC: {MC_price:.4f} pour {nb_simul} trajectoires")
+    print(f"Intervalle de confiance à {(1-alph)*100}%: [{IC_bas:.4f}, {IC_haut:.4f}]")
+    print(f"L'erreur standard de l'estimation est : {std_error}\n")
 
-       # Utilisation de la loi de Student 
-       ddl = nb_simul - 1  # degrés de liberté
-       t_value = stats.t.ppf(1 - alph/2, ddl)
-        
-       # Erreur standard
-       std_error = np.sqrt(sigma_Y / nb_simul)
-        
-       # Intervalle de confiance
-       IC_bas  = (np.mean(Y) - t_value * std_error)* np.exp(-r*T)
-       IC_haut = (np.mean(Y) + t_value * std_error)* np.exp(-r*T)
-
-       print(f"\nPrix de l'option PUT européenne : {P_euro:.4f} pour {nb_simul} trajectoires")
-       print(f"Intervalle de confiance à {(1-alph)*100}%: [{IC_bas:.4f}, {IC_haut:.4f}]")
-
-       prix_theorique = 0
-
-    return P_euro, (IC_bas, IC_haut), prix_theorique
+    return MC_price, (IC_bas, IC_haut)
 
 
-def calcul_P_euro_trajectoires(nb_simul_list, barriere=False, So=1, r=0.015, T=2, sigma=0.15, K=1, alph=0.1, delta = 1/52 ,B = 0.7 ):
+def calcul_P_euro_trajectoires(nb_simul_list, barriere=False, S0=1, r=0.015, T=2, sigma=0.15, K=1, alph=0.1, delta = 1/52 ,B = 0.7, m_covariance = True ):
 
     prices = []
     lower_bounds = []
     upper_bounds = []
-    prix_theorique = 0.0
-    
+
     for nb_simul in nb_simul_list:
-        P_euro, (IC_bas, IC_haut), prix_theorique = calcul_P_euro(nb_simul, barriere= barriere, So=So, r=r, T=T, sigma=sigma, K=K, alph = alph, delta = delta, B = B)
-        prices.append(P_euro)
+        MC_price, (IC_bas, IC_haut) = calcul_P_euro(nb_simul, barriere= barriere, S0=S0, r=r, T=T, sigma=sigma, K=K, alph = alph, delta = delta, B = B, m_covariance = m_covariance)
+        prices.append( MC_price)
         lower_bounds.append(IC_bas)
         upper_bounds.append(IC_haut)
 
+
+    if not barriere:
+        x1 = (1/sigma*np.sqrt(T))*(mt.log(K/S0) - (r-(sigma**2/2))*T)
+        prix_theorique = np.exp(-r*T)*K*fonction_repart(x1) - S0*fonction_repart(x1-sigma*mt.sqrt(T))
+    else :
+        prix_theorique = 0
+
+    
     # Tracer les résultats
     plt.figure(figsize=(10, 6))
     plt.plot(nb_simul_list, prices, label="Prix estimé de l'option", color="blue", marker='o')
+
+    # Convertir en arrays NumPy pour les opérations
+    prices_array = np.array(prices)
+    lower_bounds_array = np.array(lower_bounds)
+    upper_bounds_array = np.array(upper_bounds)
+    
+    # Calculer les barres d'erreur
+    yerr_lower = prices_array - lower_bounds_array
+    yerr_upper = upper_bounds_array - prices_array
+    
+    # Tracer les points avec les barres d'erreur
+    plt.errorbar(nb_simul_list, prices,
+                yerr=[yerr_lower, yerr_upper],  # Barres d'erreur asymétriques
+                fmt='o', color='blue', 
+                capsize=3,      # Réduire de 5 à 3 pour des caps plus petits
+                capthick=0.5,   # Réduire de 1 à 0.5 pour des caps plus fins
+                ecolor='green',  
+                elinewidth=0.7, # Paramètre pour réduire l'épaisseur des lignes
+                alpha=0.7,      # Transparence (0.5 = 50% transparent)
+                label="Intervalle de confiance")
 
     # Tracer les intervalles de confiance
     plt.fill_between(nb_simul_list, lower_bounds, upper_bounds, color="blue", alpha=0.1, label="Intervalle de confiance 90%")
 
      # Ajouter une ligne horizontale pour le prix théorique
-    if prix_theorique!=0:
+    if not barriere :
         plt.axhline(y=prix_theorique, color='red', linestyle='--', label=f"Prix théorique : {prix_theorique:.4f}")
         plt.title("Estimation du prix d'une option européenne vanille avec intervalle de confiance")
         plt.xlabel("Nombre de simulations")
         plt.ylabel("Prix estimé de l'option")
+        print(f"Le prix théorique de l'option est : {prix_theorique:.4f}\n")
     else :
         # Ajouter des détails au graphique
         plt.title("Estimation du prix d'une option à barrière Down & Out avec intervalle de confiance")
@@ -242,50 +252,3 @@ def calcul_P_euro_trajectoires(nb_simul_list, barriere=False, So=1, r=0.015, T=2
     plt.show()
 
 
-
-def calcul_P_euro_trajectoires_Barriere(nb_simul_list, So=1, r=0.015, T=2, sigma=0.15, K=1, alph=0.1):
-
-    prices = []
-    lower_bounds = []
-    upper_bounds = []
-    prix_theorique = 0.0
-    
-    for nb_simul in nb_simul_list:
-        P_euro, (IC_bas, IC_haut), prix_theorique = calcul_P_euro(nb_simul, So=So, r=r, T=T, sigma=sigma, K=K, alph=alph)
-        prices.append(P_euro)
-        lower_bounds.append(IC_bas)
-        upper_bounds.append(IC_haut)
-
-    # Tracer les résultats
-    plt.figure(figsize=(10, 6))
-    plt.plot(nb_simul_list, prices, label="Prix estimé de l'option", color="blue", marker='o')
-
-    # Tracer les intervalles de confiance
-    plt.fill_between(nb_simul_list, lower_bounds, upper_bounds, color="blue", alpha=0.1, label="Intervalle de confiance 90%")
-
-     # Ajouter une ligne horizontale pour le prix théorique
-    plt.axhline(y=prix_theorique, color='red', linestyle='--', label=f"Prix théorique : {prix_theorique:.4f}")
-
-    # Ajouter des détails au graphique
-    plt.title("Estimation du prix d'une option européenne vanille avec intervalle de confiance")
-    plt.xlabel("Nombre de simulations")
-    plt.ylabel("Prix estimé de l'option")
-    plt.legend()
-    plt.grid(True)
-    plt.show()
-
-
-
-
-"""
-       gaussien_w_T = []
-       S_T_inter = []
-       for T_i in T:
-           gaussien_w_T_i = simuler_W(nb_simul/N_delta, T=T_i)
-           S_T_i = So * np.exp( (r - (sigma**2)/2) * T + sigma *gaussien_w_T_i[-1] )
-           S_T_inter.append(S_T_i)
-           gaussien_w_T = np.concatenate((gaussien_w_T, gaussien_w_T_i/mt.sqrt(T_i)))
-        
-       gaussien_w_T *= np.sqrt(T)
-       #plot_graph(gaussien_w_T)
-       """
