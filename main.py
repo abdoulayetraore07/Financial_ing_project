@@ -33,8 +33,8 @@ def main():
     nb_simul_precis = 120000
     valeurs_B = np.linspace(0.5, 1, 50)
     valeurs_sigma = np.linspace(0, 0.8, 50)
-    valeurs_delta = [3, 1, 1/4, 1/12, 1/52, 1/250]
-    #valeurs_delta = np.linspace(0.1,3,50)
+    #valeurs_delta = [3, 1, 1/4, 1/12, 1/52, 1/250]
+    valeurs_delta = np.linspace(0.1,3,50)
     
 
     ###Execution du choix

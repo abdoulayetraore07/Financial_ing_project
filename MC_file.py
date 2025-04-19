@@ -144,7 +144,7 @@ def calcul_P_trajectoires(nb_simul_list, barriere=False, S0=1, r=0.015, T=2, sig
         upper_bounds.append(IC_haut)
     
     if not barriere:
-        x1 = (1/sigma*np.sqrt(T))*(mt.log(K/S0) - (r-(sigma**2/2))*T)
+        x1 = (1/sigma*np.sqrt(T))*(np.log(K/S0) - (r-(sigma**2/2))*T)
         prix_theorique = np.exp(-r*T)*K*fonction_repart(x1) - S0*fonction_repart(x1-sigma*mt.sqrt(T))
     else :
         prix_theorique = 0
@@ -379,6 +379,7 @@ def comparer_proba_non_sortie_delta(valeurs_delta = [1/52], nb_simul = 120000, S
         print(f"Etapes : {cpt} / {len(valeurs_delta)} terminées")
         cpt+=1
 
+    print("\n")
     plt.figure(figsize=(10, 6))
 
     plt.plot(valeurs_delta,  Proba_in_DO_delta, label="Probabilité de non-sortie de ksi_DO_delta en fonction de delta", color="blue", marker='o')

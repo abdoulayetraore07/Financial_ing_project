@@ -71,7 +71,7 @@ def fonction_repart(x):
     
     # Calcul de la fonction de répartition (C.D.F.) de la loi normale standard
     poly = b_1 * t + b_2 * t**2 + b_3 * t**3 + b_4 * t**4 + b_5 * t**5
-    FDR = 1 - 1 / mt.sqrt(2 * mt.pi) * mt.exp(-x**2 / 2) * poly
+    FDR = 1 - (1 / np.sqrt(2 * np.pi)) * np.exp(-x**2 / 2) * poly
 
     return FDR
 
@@ -103,7 +103,7 @@ def simuler_W(nb_simul, T=2, barriere = False, delta = 1/52):
         return np.array(gaussien_w)
     
     else:
-        N_delta = mt.floor(T/delta)
+        N_delta = np.maximum( mt.floor(T/delta), 1)
         T = [(i+1)*delta for i in range(N_delta)] 
 
         G = np.random.normal(0,1,(N_delta,nb_simul))
