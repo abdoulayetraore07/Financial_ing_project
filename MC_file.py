@@ -7,7 +7,6 @@ from fonctions import *
 
 
 
-
 def get_S_path(nb_simul, S0=1, r=0.015, T=2, sigma=0.15, delta = 1/52, m_covariance = False, r_variance = False):
     # Calculs des parametres de discretisation
     N_delta = np.maximum(mt.floor(T/delta), 1)
@@ -261,7 +260,7 @@ def comparer_sigma(valeurs_sigma, nb_simul = 120000, S0 = 1, comparer = False):
 
 
 
-
+"""
 def correction_discretisation(S_path, B=0.7, sigma=0.15, delta=1/52):
     nb_simul, N_delta= S_path.shape[0], S_path.shape[1]
     barriere_atteinte = np.zeros(nb_simul, dtype=bool)
@@ -285,6 +284,32 @@ def correction_discretisation(S_path, B=0.7, sigma=0.15, delta=1/52):
     barriere_non_atteinte = ~barriere_atteinte # True pour les chemins qui n'ont pas touché la barrière, juste pratique pour la suite
 
     return barriere_non_atteinte  
+"""
+
+
+def correction_discretisation(S_path, B=0.7, sigma=0.15, delta=1/52 , r= 0.015):
+    
+    nb_simul, N_delta= S_path.shape[0], S_path.shape[1]
+    barriere_atteinte = np.zeros(nb_simul, dtype=int)
+    
+    for i in range(nb_simul):
+        proba_total_traject = 1
+            
+        for j in range(N_delta-1):
+            # Si déjà touché la barrière ou si les prix sont inférieurs à la barrière
+            if S_path[i, j] <= B or S_path[i, j+1] <= B:
+                proba_total_traject = 0
+                break
+            
+            # Cas ou on descends pas en dessous de B pour les extrémités
+            h = np.log( S_path[i, j]/B  + delta*(r-sigma**2/2) ) *  np.log(S_path[i, j+1]/B)  #
+
+            # Probabilité de franchissement avec le pont brownien
+            proba_total_traject *= (1 - np.exp(-2 * h / (sigma**2 * delta)))
+            
+        barriere_atteinte[i] = proba_total_traject
+
+    return barriere_atteinte  
 
 
 
@@ -327,21 +352,26 @@ def calcul_P_DO_trajectoires(nb_simul_list, S0=1, r=0.015, T=2, sigma=0.15, K=1,
 
 
 
-def comparer_delta_DO_et_DO_delta(valeurs_delta = [1/52], nb_simul = 120000, S0=1, r=0.015, T=2, sigma=0.15, K=1, alph=0.1, B = 0.7, m_covariance = False, r_variance = True):
+def comparer_DO_et_DO_delta(valeurs_delta = [1/52], nb_simul = 120000, S0=1, r=0.015, T=2, sigma=0.15, K=1, alph=0.1, B = 0.7, m_covariance = False, r_variance = True,  delta_DO = 1/250):
  
     prices_DO_delta = []
-    prices_DO = []
+    #prices_DO = []
 
+    MC_price_DO, (IC_bas, IC_haut) = calcul_P_DO(nb_simul=nb_simul, S0=S0, r=r, T=T, sigma=sigma, K=K, alph = alph, delta = delta_DO, B = B, m_covariance = m_covariance, r_variance = r_variance)
+      
     for delta in valeurs_delta:
         MC_price_DO_Delta, (IC_bas, IC_haut) = calcul_P_euro_et_DO_delta(nb_simul=nb_simul, barriere= True, S0=S0, r=r, T=T, sigma=sigma, K=K, alph = alph, delta = delta, B = B, m_covariance = m_covariance, r_variance= r_variance)
         prices_DO_delta.append(MC_price_DO_Delta)
+        """
         MC_price_DO, (IC_bas, IC_haut) = calcul_P_DO(nb_simul=nb_simul, S0=S0, r=r, T=T, sigma=sigma, K=K, alph = alph, delta = delta, B = B, m_covariance = m_covariance, r_variance = r_variance)
         prices_DO.append(MC_price_DO)
+        """
            
     plt.figure(figsize=(10, 6))
 
     plt.plot(valeurs_delta, prices_DO_delta, label="Prix estimé de l'option avec P_DO_delta en fonction de delta ", color="blue", marker='o')
-    plt.plot(valeurs_delta,prices_DO, label="Prix estimé de l'option avec P_DO en fonction de delta", color="green", marker='o')
+    plt.axhline(y=MC_price_DO, color='green', linestyle='--', label=f"label=Prix estimé de l'option avec P_DO pour delta = {delta_DO}")
+    #plt.plot(valeurs_delta,prices_DO, label="Prix estimé de l'option avec P_DO en fonction de delta", color="green", marker='o')
     
     plt.title("Estimations du prix d'une option barriere européenne vanille en fonction de delta avec reduction de variance")
     plt.xlabel("Valeurs de delta")
@@ -353,29 +383,34 @@ def comparer_delta_DO_et_DO_delta(valeurs_delta = [1/52], nb_simul = 120000, S0=
     plt.show()
 
 
-def comparer_proba_non_sortie_delta(valeurs_delta = [1/52], nb_simul = 120000, S0=1, r=0.015, T=2, sigma=0.15, K=1, alph = 0.1, B = 0.7, m_covariance = False, r_variance = False):
+
+
+def comparer_proba_non_sortie_delta(valeurs_delta = [1/52], nb_simul = 120000, S0=1, r=0.015, T=2, sigma=0.15, K=1, alph = 0.1, B = 0.7, m_covariance = False, r_variance = False, delta_DO = 1/250):
 
     Proba_in_DO_delta = []
-    Proba_in_DO = []
-    cpt = 1
+    cpt = 1 
+
+    
     for delta in  valeurs_delta :
         #Obtention des trajectoires
         S_path, S_path_neg = get_S_path(nb_simul, S0=S0, r=r, T=T, sigma=sigma, delta = delta, m_covariance = m_covariance, r_variance = r_variance)
 
-        #Obtention du vecteur des mins et vecteur pont gaussien sur chaque trajectoire
+        #Obtention du vecteur des mins sur chaque trajectoire
         S_path_min  = np.min(S_path, axis = 1)
-        S_path_hit  = correction_discretisation(S_path=S_path, B=B, sigma=sigma, delta=delta)
+        
+        if delta == delta_DO :
+            #Obtention du vecteur pont gaussien sur chaque trajectoire
+            S_path_hit  = correction_discretisation(S_path=S_path, B=B, sigma=sigma, delta=delta)
+            payoff_DO = S_path_hit   
+            proba_in_DO, (IC_bas, IC_haut) = compute_MC(payoff=payoff_DO, nb_simul=nb_simul,  alph=alph, calcul_proba= True)
     
         # Calcul des payoffs
         payoff_DO_delta = (S_path_min>=B) 
-        payoff_DO = S_path_hit   
-
+       
         #ESTIMATION GLOBLALE DU PRIX DE L'OPTION PAR MONTE-CARLO
         proba_in_DO_delta, (IC_bas, IC_haut) = compute_MC(payoff=payoff_DO_delta, nb_simul=nb_simul,  alph=alph, calcul_proba= True)
-        proba_in_DO, (IC_bas, IC_haut) = compute_MC(payoff=payoff_DO, nb_simul=nb_simul,  alph=alph, calcul_proba= True)
-
+        
         Proba_in_DO_delta.append(proba_in_DO_delta)
-        Proba_in_DO.append(proba_in_DO)
         print(f"Etapes : {cpt} / {len(valeurs_delta)} terminées")
         cpt+=1
 
@@ -383,7 +418,7 @@ def comparer_proba_non_sortie_delta(valeurs_delta = [1/52], nb_simul = 120000, S
     plt.figure(figsize=(10, 6))
 
     plt.plot(valeurs_delta,  Proba_in_DO_delta, label="Probabilité de non-sortie de ksi_DO_delta en fonction de delta", color="blue", marker='o')
-    plt.plot(valeurs_delta, Proba_in_DO, label="Probabilité de non-sortie de ksi_DO en fonction de delta ", color="green", marker='o')
+    plt.axhline(y=proba_in_DO, color='green', linestyle='--', label=f"label=Prix estimé de l'option avec P_DO pour delta = {delta_DO}")
     
     plt.title("Probabilité de non-franchissement de barriere en fonction de delta")
     plt.xlabel("Valeurs de delta")
@@ -394,3 +429,104 @@ def comparer_proba_non_sortie_delta(valeurs_delta = [1/52], nb_simul = 120000, S
     plt.grid(True)
     plt.show()
     
+
+
+def variable_controle( nb_simul=120000, S0=1, r=0.015, T=2, sigma=0.15, K=1, alph = 0.1, delta = 1/52, B = 0.7, m_covariance = False, r_variance = True):
+
+    #Obtention des trajectoires
+    S_path, S_path_neg = get_S_path(nb_simul, S0=S0, r=r, T=T, sigma=sigma, delta = delta, m_covariance = m_covariance, r_variance = r_variance)
+
+    #Obtention des vecteurs disant pour chaque trajectoire si on a touché la barriere ou pas  
+    S_path_hit  = correction_discretisation(S_path=S_path, B=B, sigma=sigma, delta=delta)
+    S_path_neg_hit  = correction_discretisation(S_path=S_path_neg, B=B, sigma=sigma, delta=delta)
+    
+    #Conversion en proba relatif à P_DI
+    S_path_hit  = 1 - correction_discretisation(S_path=S_path, B=B, sigma=sigma, delta=delta)
+    S_path_neg_hit  = 1 - correction_discretisation(S_path=S_path_neg, B=B, sigma=sigma, delta=delta)
+
+    # Calcul des payoffs
+    payoff = 0.5 * np.exp(-r*T) * (  np.maximum(0, K - S_path[:,-1])*S_path_hit   +   np.maximum(0, K - S_path_neg[:,-1])*S_path_neg_hit )
+
+    #ESTIMATION GLOBLALE DU PRIX DE L'OPTION PAR MONTE-CARLO
+    MC_price, (IC_bas, IC_haut) = compute_MC(payoff, nb_simul,  alph)
+
+    #Calcul de P_DI
+    P_DI = MC_price
+
+    #Calcul Y par méthode explicite
+    x1 = (1/sigma*np.sqrt(T))*(np.log(K/S0) - (r-(sigma**2/2))*T)
+    prix_theorique = np.exp(-r*T)*K*fonction_repart(x1) - S0*fonction_repart(x1-sigma*mt.sqrt(T))
+
+    #Calcul de P_DO
+    P_DO = prix_theorique - P_DI
+    IC_bas, IC_haut = prix_theorique - IC_haut, prix_theorique - IC_bas
+
+    return P_DO, (IC_bas, IC_haut)
+
+
+
+
+def calcul_P_DO_VC_trajectoires(nb_simul_list, S0=1, r=0.015, T=2, sigma=0.15, K=1, alph=0.1, delta = 1/52 ,B = 0.7, m_covariance = False, r_variance = True):
+    prices = []
+    lower_bounds = []
+    upper_bounds = []
+
+    for nb_simul in nb_simul_list:
+        MC_price, (IC_bas, IC_haut) = variable_controle( nb_simul=nb_simul, S0= S0, r=r, T=T, sigma=sigma, K=K, alph = alph, delta = delta, B = B, m_covariance = m_covariance, r_variance = r_variance)
+        prices.append( MC_price)
+        lower_bounds.append(IC_bas)
+        upper_bounds.append(IC_haut)
+
+    
+    plot_graph_trajet(nb_simul_list, True,  prices, lower_bounds, upper_bounds)
+
+
+
+
+def comparer_VC_et_sans_VC(nb_simul_list, S0=1, r=0.015, T=2, sigma=0.15, K=1, alph=0.1, delta = 1/52 ,B = 0.7, m_covariance = False, r_variance = True):
+
+    prices_1 = []
+    lower_bounds_1 = []
+    upper_bounds_1 = []
+
+    prices_2 = []
+    lower_bounds_2 = []
+    upper_bounds_2 = []
+
+    for nb_simul in nb_simul_list:
+
+        MC_price, (IC_bas, IC_haut) = calcul_P_DO(nb_simul, S0=S0, r=r, T=T, sigma=sigma, K=K, alph = alph, delta = delta, B = B, m_covariance = m_covariance, r_variance= r_variance)
+        prices_1.append( MC_price)
+        lower_bounds_1.append(IC_bas)
+        upper_bounds_1.append(IC_haut)
+
+        MC_price, (IC_bas, IC_haut) = variable_controle( nb_simul=nb_simul, S0= S0, r=r, T=T, sigma=sigma, K=K, alph = alph, delta = delta, B = B, m_covariance = m_covariance, r_variance = r_variance)
+        prices_2.append( MC_price)
+        lower_bounds_2.append(IC_bas)
+        upper_bounds_2.append(IC_haut)
+
+
+    # Tracer les résultats
+    plt.figure(figsize=(10, 6))
+    plt.plot(nb_simul_list, prices_1, label="Prix estimé de l'option P_DO sans variable de controle", color="blue", marker='o')
+    plt.plot(nb_simul_list, prices_2, label="Prix estimé de l'option P_DO avec variable de controle", color="green", marker='o')
+
+    # Tracer les intervalles de confiance
+    plt.fill_between(nb_simul_list, lower_bounds_1, upper_bounds_1, 
+                 color="blue", alpha=0.2, 
+                 edgecolor="black", linewidth=1.5,
+                 label="Intervalle de confiance 90% (méthode 1)")
+
+    plt.fill_between(nb_simul_list, lower_bounds_2, upper_bounds_2, 
+                 color="green", alpha=0.2, 
+                 edgecolor="black", linewidth=1.5,
+                 label="Intervalle de confiance 90% (méthode 2)")
+    
+ 
+    plt.title("Comparaison des estimations du prix d'une option barriere avec et sans variable de controle")
+    plt.xlabel("Nombre de simulations")
+    plt.ylabel("Prix estimé de l'option") 
+
+    plt.legend()
+    plt.grid(True)
+    plt.show()
