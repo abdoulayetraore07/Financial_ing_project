@@ -448,18 +448,22 @@ def variable_controle( nb_simul=120000, S0=1, r=0.015, T=2, sigma=0.15, K=1, alp
     payoff = 0.5 * np.exp(-r*T) * (  np.maximum(0, K - S_path[:,-1])*S_path_hit   +   np.maximum(0, K - S_path_neg[:,-1])*S_path_neg_hit )
 
     #ESTIMATION GLOBLALE DU PRIX DE L'OPTION PAR MONTE-CARLO
-    MC_price, (IC_bas, IC_haut) = compute_MC(payoff, nb_simul,  alph)
+    MC_price, (IC_bas, IC_haut) = compute_MC(payoff, nb_simul,  alph, calcul_proba = True)
 
     #Calcul de P_DI
     P_DI = MC_price
 
-    #Calcul Y par méthode explicite
+    #Calcul de E[Y] par méthode explicite
     x1 = (1/sigma*np.sqrt(T))*(np.log(K/S0) - (r-(sigma**2/2))*T)
     prix_theorique = np.exp(-r*T)*K*fonction_repart(x1) - S0*fonction_repart(x1-sigma*mt.sqrt(T))
+    E_Y = prix_theorique
 
     #Calcul de P_DO
-    P_DO = prix_theorique - P_DI
-    IC_bas, IC_haut = prix_theorique - IC_haut, prix_theorique - IC_bas
+    P_DO = E_Y - P_DI
+    IC_bas, IC_haut = E_Y - IC_haut, E_Y - IC_bas
+
+    print(f"\nPrix de l'option PUT européenne par MC: {P_DO:.4f} pour {nb_simul} trajectoires")
+    print(f"Intervalle de confiance à {(1-alph)*100}%: [{IC_bas:.4f}, {IC_haut:.4f}]")
 
     return P_DO, (IC_bas, IC_haut)
 
@@ -508,23 +512,88 @@ def comparer_VC_et_sans_VC(nb_simul_list, S0=1, r=0.015, T=2, sigma=0.15, K=1, a
 
     # Tracer les résultats
     plt.figure(figsize=(10, 6))
-    plt.plot(nb_simul_list, prices_1, label="Prix estimé de l'option P_DO sans variable de controle", color="blue", marker='o')
-    plt.plot(nb_simul_list, prices_2, label="Prix estimé de l'option P_DO avec variable de controle", color="green", marker='o')
 
-    # Tracer les intervalles de confiance
+    plt.plot(nb_simul_list, prices_1, label="Prix estimé de l'option P_DO sans variable de controle", color="blue", marker='o')
     plt.fill_between(nb_simul_list, lower_bounds_1, upper_bounds_1, 
                  color="blue", alpha=0.2, 
                  edgecolor="black", linewidth=1.5,
                  label="Intervalle de confiance 90% (méthode 1)")
-
+    
+    plt.plot(nb_simul_list, prices_2, label="Prix estimé de l'option P_DO avec variable de controle", color="green", marker='o')
     plt.fill_between(nb_simul_list, lower_bounds_2, upper_bounds_2, 
                  color="green", alpha=0.2, 
                  edgecolor="black", linewidth=1.5,
                  label="Intervalle de confiance 90% (méthode 2)")
+
+    # Tracer les intervalles de confiance
+   
+
+    
     
  
     plt.title("Comparaison des estimations du prix d'une option barriere avec et sans variable de controle")
     plt.xlabel("Nombre de simulations")
+    plt.ylabel("Prix estimé de l'option") 
+
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+
+
+
+def discriminant_VC (valeurs_B, nb_simul= 120000,  S0=1, r=0.015, T=2, sigma=0.15, K=1, alph=0.1, delta = 1/52, m_covariance = False, r_variance = True):
+
+    """
+    prices_1 = []
+    lower_bounds_1 = []
+    upper_bounds_1 = []
+    """
+
+    prices_2 = []
+    lower_bounds_2 = []
+    upper_bounds_2 = []
+
+    for B in valeurs_B:
+
+        """
+        MC_price, (IC_bas, IC_haut) = calcul_P_DO(nb_simul, S0=S0, r=r, T=T, sigma=sigma, K=K, alph = alph, delta = delta, B = B, m_covariance = m_covariance, r_variance= r_variance)
+        prices_1.append( MC_price)
+        lower_bounds_1.append(IC_bas)
+        upper_bounds_1.append(IC_haut)
+        """
+
+        MC_price, (IC_bas, IC_haut) = variable_controle( nb_simul=nb_simul, S0= S0, r=r, T=T, sigma=sigma, K=K, alph = alph, delta = delta, B = B, m_covariance = m_covariance, r_variance = r_variance)
+        prices_2.append( MC_price)
+        lower_bounds_2.append(IC_bas)
+        upper_bounds_2.append(IC_haut)
+
+
+    # Tracer les résultats
+    plt.figure(figsize=(10, 6))
+    
+    """
+    plt.plot(valeurs_B, prices_1, label="Intervalle confiance du prix estimé de l'option P_DO sans VC en fonction de B", color="blue", marker='o')
+    plt.fill_between(valeurs_B, lower_bounds_1, upper_bounds_1, 
+                 color="blue", alpha=0.2, 
+                 edgecolor="black", linewidth=1.5,
+                 label="Intervalle de confiance 90% (méthode 1)")
+    """
+    
+    plt.plot(valeurs_B, prices_2, label="Intervalle confiance du prix estimé de l'option P_DO avec VC en fonction de B", color="green", marker='o')
+    plt.fill_between(valeurs_B, lower_bounds_2, upper_bounds_2, 
+                 color="green", alpha=0.2, 
+                 edgecolor="black", linewidth=1.5,
+                 label="Intervalle de confiance 90% (méthode 2)")
+
+    # Tracer les intervalles de confiance
+   
+
+    
+    
+ 
+    plt.title("Comparaison des intervalles de confiance des estimations du prix d'une option barriere avec et sans VC en fonction de B")
+    plt.xlabel("valeurs de B")
     plt.ylabel("Prix estimé de l'option") 
 
     plt.legend()
