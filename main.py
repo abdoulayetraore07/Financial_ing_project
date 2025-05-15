@@ -35,14 +35,14 @@ def main():
     ### Paramètres communs
     nb_simul_list = [1000, 3000, 5000, 8000, 13000, 25000] 
     #nb_simul_list = [1000, 3000, 5000, 8000, 13000, 25000, 40000, 65000, 90000, 120000, 500000]
-    nb_simul_precis = 120000
+    nb_simul_precis = 500000
     valeurs_B = np.linspace(0.5, 1, 15)
     valeurs_sigma = np.linspace(0, 0.8, 50)
-    valeurs_delta = [3, 1, 1/4, 1/12, 1/52, 1/100, 1/250, 1/275, 1/300]
+    valeurs_delta = [3, 1, 1/4, 1/12, 1/52, 1/100, 1/250, 1/275, 1/300, 1/500, 1/700]
     #valeurs_delta = np.linspace(0.1,3,50)
     
 
-    ###Execution du choix
+    ### Execution du choix
 
     if choix == "0":
         # Option européenne vanille sans barriere
