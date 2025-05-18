@@ -7,6 +7,28 @@ from fonctions import *
 
 
 
+
+
+# ========================================
+# Simule les trajectoires du cours S(t) selon le modèle de Black-Scholes
+# avec possibilité de méthode par covariance (pont brownien)
+# et de réduction de variance (antithétique)
+#
+# Entrées :
+# - nb_simul : nombre de simulations
+# - S0 : prix initial
+# - r : taux sans risque
+# - T : maturité de l'option
+# - sigma : volatilité de l'actif
+# - delta : pas de discrétisation
+# - m_covariance : booléen pour méthode par covariance (True = pont brownien)
+# - r_variance : booléen pour activer la réduction de variance
+#
+# Sortie :
+# - S_path : trajectoires standards
+# - S_path_neg : trajectoires inverses si r_variance est activé, sinon identique à S_path
+# ========================================
+
 def get_S_path(nb_simul, S0=1, r=0.015, T=2, sigma=0.15, delta = 1/52, m_covariance = False, r_variance = False):
     # Calculs des parametres de discretisation
     N_delta = np.maximum(mt.floor(T/delta), 1)
@@ -29,7 +51,7 @@ def get_S_path(nb_simul, S0=1, r=0.015, T=2, sigma=0.15, delta = 1/52, m_covaria
         gaussien_W_path = simuler_W(nb_simul, T=2, barriere = True, delta = delta)
 
         #Obtention des trajectoires 
-        T_path = [(i+1)*delta for i in range(N_delta)]              ## On avait fait une erreur là car on multipliait par T tout simplement au lieu de T_path
+        T_path = [(i+1)*delta for i in range(N_delta)]             
         T_path =  np.broadcast_to(T_path , (nb_simul, N_delta))    ## Fonction pour repeter le meme vecteur sur chaque ligne (On get une matrice)
         S_path  = S0 * np.exp( (r - (sigma**2)/2) * T_path + sigma*gaussien_W_path )
 
@@ -44,6 +66,22 @@ def get_S_path(nb_simul, S0=1, r=0.015, T=2, sigma=0.15, delta = 1/52, m_covaria
 
 
 
+
+
+# ========================================
+# Calcule le prix d'une option et son intervalle de confiance
+# via la méthode de Monte Carlo (avec Student)
+#
+# Entrées :
+# - payoff : vecteur des gains simulés
+# - nb_simul : nombre de simulations
+# - alph : niveau de risque pour l'intervalle de confiance
+# - calcul_proba : booléen, si True n'affiche pas les impressions
+#
+# Sortie :
+# - MC_price : prix moyen estimé
+# - (IC_bas, IC_haut) : bornes de l'intervalle de confiance
+# ========================================
 
 def compute_MC(payoff, nb_simul,  alph, calcul_proba = False):
     # Prix estimé de l'option via MC
@@ -74,6 +112,26 @@ def compute_MC(payoff, nb_simul,  alph, calcul_proba = False):
 
 
 
+
+
+# ========================================
+# Évalue les prix d'une option pour différentes tailles d’échantillons
+# et affiche les résultats avec intervalles de confiance
+#
+# Entrées :
+# - nb_simul_list : liste de tailles de simulation
+# - barriere : booléen pour option barrière
+# - S0, r, T, sigma, K : paramètres Black-Scholes
+# - alph : niveau de risque pour l'IC
+# - delta : pas de discrétisation
+# - B : niveau de la barrière
+# - m_covariance : méthode pont brownien
+# - r_variance : réduction de variance
+# - comparer_r_var : active la comparaison entre réduction ou non
+#
+# Sortie :
+# - Aucun retour, affiche les graphiques
+# ========================================
 
 def calcul_P_euro_et_DO_delta(nb_simul, barriere=False, S0=1, r=0.015, T=2, sigma=0.15, K=1, alph = 0.1, delta = 1/52, B = 0.7, m_covariance = False, r_variance = False):
     
@@ -129,6 +187,24 @@ def calcul_P_euro_et_DO_delta(nb_simul, barriere=False, S0=1, r=0.015, T=2, sigm
 
 
 
+# ========================================
+# Évalue les prix d'une option pour différentes tailles d’échantillons
+# et affiche les résultats avec intervalles de confiance
+#
+# Entrées :
+# - nb_simul_list : liste de tailles de simulation
+# - barriere : booléen pour option barrière
+# - S0, r, T, sigma, K : paramètres Black-Scholes
+# - alph : niveau de risque pour l'IC
+# - delta : pas de discrétisation
+# - B : niveau de la barrière
+# - m_covariance : méthode pont brownien
+# - r_variance : réduction de variance
+# - comparer_r_var : active la comparaison entre réduction ou non
+#
+# Sortie :
+# - Aucun retour, affiche les graphiques
+# ========================================
 
 def calcul_P_trajectoires(nb_simul_list, barriere=False, S0=1, r=0.015, T=2, sigma=0.15, K=1, alph=0.1, delta = 1/52 ,B = 0.7, m_covariance = False, r_variance = False, comparer_r_var = False):
 
@@ -169,6 +245,19 @@ def calcul_P_trajectoires(nb_simul_list, barriere=False, S0=1, r=0.015, T=2, sig
 
 
 
+# ========================================
+# Compare les résultats avec et sans réduction de variance
+# sur plusieurs tailles d’échantillons (Monte Carlo)
+#
+# Entrées :
+# - nb_simul_list : liste des tailles
+# - prices_1, prices_2 : prix estimés avec et sans VC
+# - lower_bounds, upper_bounds : intervalles de confiance pour chaque méthode
+#
+# Sortie :
+# - Aucun retour, affiche les courbes comparatives
+# ========================================
+
 def comparer_r_variance(nb_simul_list, prices_1, lower_bounds_1, upper_bounds_1, prices_2, lower_bounds_2, upper_bounds_2):
     # Tracer les résultats
     plt.figure(figsize=(10, 6))
@@ -198,6 +287,19 @@ def comparer_r_variance(nb_simul_list, prices_1, lower_bounds_1, upper_bounds_1,
 
 
 
+
+# ========================================
+# Évalue le prix d'une option barrière
+# en fonction de différentes valeurs de barrière B
+#
+# Entrées :
+# - valeurs_B : liste de seuils B à tester
+# - nb_simul : nombre de simulations
+#
+# Sortie :
+# - Aucun retour, affiche un graphique du prix en fonction de B
+# ========================================
+
 def comparer_B(valeurs_B, nb_simul = 120000):
     prices = []
     for B in valeurs_B:
@@ -218,6 +320,21 @@ def comparer_B(valeurs_B, nb_simul = 120000):
 
 
 
+
+
+# ========================================
+# Calcule le prix de l'option barrière pour différentes valeurs de sigma
+# avec comparaison possible entre deux valeurs de S0 (1 et 0.8)
+#
+# Entrées :
+# - valeurs_sigma : liste de volatilités testées
+# - nb_simul : nombre de simulations
+# - S0 : prix initial
+# - comparer : booléen pour comparer S0=1 vs S0=0.8
+#
+# Sortie :
+# - Aucun retour, affiche les courbes
+# ========================================
 
 def comparer_sigma(valeurs_sigma, nb_simul = 120000, S0 = 1, comparer = False):
     prices = []
@@ -260,32 +377,21 @@ def comparer_sigma(valeurs_sigma, nb_simul = 120000, S0 = 1, comparer = False):
 
 
 
-"""
-def correction_discretisation(S_path, B=0.7, sigma=0.15, delta=1/52):
-    nb_simul, N_delta= S_path.shape[0], S_path.shape[1]
-    barriere_atteinte = np.zeros(nb_simul, dtype=bool)
-    
-    for i in range(nb_simul):
-        for j in range(N_delta-1):
-            # Si déjà touché la barrière ou si les prix sont inférieurs à la barrière
-            if barriere_atteinte[i] or S_path[i, j] <= B or S_path[i, j+1] <= B:
-                barriere_atteinte[i] = True
-                break
-            
-            # Cas ou on descends pas en dessous de B pour les extrémités
-            h = np.log( S_path[i, j]/B) * np.log( S_path[i, j+1]/B)
 
-            # Probabilité de franchissement avec le pont brownien
-            p_barriere = np.exp(-2 * h / (sigma**2 * delta))
-            if random.uniform(0.0, 1.0) < p_barriere:
-                barriere_atteinte[i] = True
-                break
 
-    barriere_non_atteinte = ~barriere_atteinte # True pour les chemins qui n'ont pas touché la barrière, juste pratique pour la suite
-
-    return barriere_non_atteinte  
-"""
-
+# ========================================
+# Corrige la discrétisation d'une barrière en calculant
+# la probabilité de franchissement via un pont brownien
+#
+# Entrées :
+# - S_path : matrice des trajectoires simulées
+# - B : niveau de la barrière
+# - sigma : volatilité de l'actif
+# - delta : pas de discrétisation en temps
+# - r : taux d’intérêt sans risque
+#
+# Sortie : vecteur contenant les probabilités de non-franchissement
+# ========================================
 
 def correction_discretisation(S_path, B=0.7, sigma=0.15, delta=1/52 , r= 0.015):
     
@@ -313,7 +419,75 @@ def correction_discretisation(S_path, B=0.7, sigma=0.15, delta=1/52 , r= 0.015):
 
 
 
+"""
+def correction_discretisation(S_path, B=0.7, sigma=0.15, delta=1/52):
+    nb_simul, N_delta= S_path.shape[0], S_path.shape[1]
+    barriere_atteinte = np.zeros(nb_simul, dtype=bool)
+    
+    for i in range(nb_simul):
+        for j in range(N_delta-1):
+            # Si déjà touché la barrière ou si les prix sont inférieurs à la barrière
+            if barriere_atteinte[i] or S_path[i, j] <= B or S_path[i, j+1] <= B:
+                barriere_atteinte[i] = True
+                break
+            
+            # Cas ou on descends pas en dessous de B pour les extrémités
+            h = np.log( S_path[i, j]/B) * np.log( S_path[i, j+1]/B)
 
+            # Probabilité de franchissement avec le pont brownien
+            p_barriere = np.exp(-2 * h / (sigma**2 * delta))
+            if random.uniform(0.0, 1.0) < p_barriere:
+                barriere_atteinte[i] = True
+                break
+
+    barriere_non_atteinte = ~barriere_atteinte # True pour les chemins qui n'ont pas touché la barrière, juste pratique pour la suite
+
+    return barriere_non_atteinte  
+
+    
+
+def correction_discretisation(S_path, B=0.7, sigma=0.15, delta=1/52 , r= 0.015):
+    
+    nb_simul, N_delta= S_path.shape[0], S_path.shape[1]
+    barriere_atteinte = np.zeros(nb_simul, dtype=int)
+    
+    for i in range(nb_simul):
+        proba_total_traject = 1
+            
+        for j in range(N_delta-1):
+            # Si déjà touché la barrière ou si les prix sont inférieurs à la barrière
+            if S_path[i, j] <= B or S_path[i, j+1] <= B:
+                proba_total_traject = 0
+                break
+            
+            # Cas ou on descends pas en dessous de B pour les extrémités
+            h = np.log( S_path[i, j]/B ) *  np.log(S_path[i, j+1]/B)  #
+
+            # Probabilité de franchissement avec le pont brownien
+            proba_total_traject *= (1 - np.exp(-2 * h / (sigma**2 * delta)))
+            
+        barriere_atteinte[i] = proba_total_traject
+
+    return barriere_atteinte  
+"""
+
+
+
+
+
+
+# ========================================
+# Calcule le prix d'une option barrière (Down & Out)
+# en utilisant les trajectoires corrigées (pont brownien)
+#
+# Entrées :
+# - nb_simul : nombre de simulations
+# - S0, r, T, sigma, K, alph : paramètres standards de l’option
+# - delta, B : discrétisation et niveau de barrière
+# - m_covariance, r_variance : booléens pour méthode de covariance et réduction de variance
+#
+# Sortie : tuple (prix estimé, intervalle de confiance)
+# ========================================
 
 def calcul_P_DO(nb_simul=120000, S0=1, r=0.015, T=2, sigma=0.15, K=1, alph = 0.1, delta = 1/52, B = 0.7, m_covariance = False, r_variance = True):
 
@@ -335,6 +509,21 @@ def calcul_P_DO(nb_simul=120000, S0=1, r=0.015, T=2, sigma=0.15, K=1, alph = 0.1
 
 
 
+
+
+# ========================================
+# Trace le prix estimé de l'option P_DO
+# en fonction du nombre de trajectoires
+#
+# Entrées :
+# - nb_simul_list : liste des tailles d’échantillons testées
+# - S0, r, T, sigma, K, alph : paramètres standards de l’option
+# - delta, B : discrétisation et niveau de barrière
+# - m_covariance, r_variance : booléens pour méthode de covariance et réduction de variance
+#
+# Sortie : graphique des prix estimés
+# ========================================
+
 def calcul_P_DO_trajectoires(nb_simul_list, S0=1, r=0.015, T=2, sigma=0.15, K=1, alph=0.1, delta = 1/52 ,B = 0.7, m_covariance = False, r_variance = True):
     prices = []
     lower_bounds = []
@@ -351,6 +540,21 @@ def calcul_P_DO_trajectoires(nb_simul_list, S0=1, r=0.015, T=2, sigma=0.15, K=1,
 
 
 
+
+
+
+# ========================================
+# Compare les prix obtenus via la méthode P_DO
+# et la méthode P_DO_delta (discrétisation simple)
+# pour différentes valeurs de delta
+#
+# Entrées :
+# - valeurs_delta : liste de deltas à tester
+# - delta_DO : valeur de référence pour la méthode corrigée
+# - autres paramètres standards de l’option
+#
+# Sortie : graphique comparatif
+# ========================================
 
 def comparer_DO_et_DO_delta(valeurs_delta = [1/52], nb_simul = 120000, S0=1, r=0.015, T=2, sigma=0.15, K=1, alph=0.1, B = 0.7, m_covariance = False, r_variance = True,  delta_DO = 1/250):
  
@@ -384,6 +588,20 @@ def comparer_DO_et_DO_delta(valeurs_delta = [1/52], nb_simul = 120000, S0=1, r=0
 
 
 
+
+
+
+# ========================================
+# Compare les probabilités de non-franchissement
+# entre la méthode P_DO (pont brownien) et P_DO_delta
+#
+# Entrées :
+# - valeurs_delta : liste des deltas à tester
+# - delta_DO : valeur utilisée pour le pont brownien
+# - autres paramètres standards de l’option
+#
+# Sortie : graphique des probabilités
+# ========================================
 
 def comparer_proba_non_sortie_delta(valeurs_delta = [1/52], nb_simul = 120000, S0=1, r=0.015, T=2, sigma=0.15, K=1, alph = 0.1, B = 0.7, m_covariance = False, r_variance = False, delta_DO = 1/250):
 
@@ -431,6 +649,22 @@ def comparer_proba_non_sortie_delta(valeurs_delta = [1/52], nb_simul = 120000, S
     
 
 
+
+
+
+# ========================================
+# Applique la méthode de variable de contrôle
+# pour estimer le prix d’une option barrière
+#
+# Entrées :
+# - nb_simul : nombre de simulations
+# - S0, r, T, sigma, K, alph : paramètres standards de l’option
+# - delta, B : discrétisation et niveau de barrière
+# - m_covariance, r_variance : booléens pour méthode de covariance et réduction de variance
+#
+# Sortie : tuple (prix estimé avec VC, intervalle de confiance)
+# ========================================
+
 def variable_controle( nb_simul=120000, S0=1, r=0.015, T=2, sigma=0.15, K=1, alph = 0.1, delta = 1/52, B = 0.7, m_covariance = False, r_variance = True):
 
     #Obtention des trajectoires
@@ -470,6 +704,19 @@ def variable_controle( nb_simul=120000, S0=1, r=0.015, T=2, sigma=0.15, K=1, alp
 
 
 
+
+
+# ========================================
+# Trace le prix estimé par méthode VC
+# en fonction du nombre de simulations
+#
+# Entrées :
+# - nb_simul_list : tailles d’échantillons testées
+# - autres paramètres standards
+#
+# Sortie : graphique des estimations VC
+# ========================================
+
 def calcul_P_DO_VC_trajectoires(nb_simul_list, S0=1, r=0.015, T=2, sigma=0.15, K=1, alph=0.1, delta = 1/52 ,B = 0.7, m_covariance = False, r_variance = True):
     prices = []
     lower_bounds = []
@@ -486,6 +733,19 @@ def calcul_P_DO_VC_trajectoires(nb_simul_list, S0=1, r=0.015, T=2, sigma=0.15, K
 
 
 
+
+
+
+# ========================================
+# Compare les prix estimés avec et sans
+# variable de contrôle (VC)
+#
+# Entrées :
+# - nb_simul_list : tailles d’échantillons testées
+# - autres paramètres standards
+#
+# Sortie : graphique de comparaison
+# ========================================
 
 def comparer_VC_et_sans_VC(nb_simul_list, S0=1, r=0.015, T=2, sigma=0.15, K=1, alph=0.1, delta = 1/52 ,B = 0.7, m_covariance = False, r_variance = True):
 
@@ -541,6 +801,19 @@ def comparer_VC_et_sans_VC(nb_simul_list, S0=1, r=0.015, T=2, sigma=0.15, K=1, a
 
 
 
+
+
+
+# ========================================
+# Compare les intervalles de confiance pour la méthode VC
+# en fonction de différentes valeurs de barrière B
+#
+# Entrées :
+# - valeurs_B : liste des barrières à tester
+# - autres paramètres standards
+#
+# Sortie : graphique des intervalles de confiance
+# ========================================
 
 def discriminant_VC (valeurs_B, nb_simul= 120000,  S0=1, r=0.015, T=2, sigma=0.15, K=1, alph=0.1, delta = 1/52, m_covariance = False, r_variance = True):
 
