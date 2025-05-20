@@ -3,9 +3,6 @@ from MC_file import *
 
 
 
-
-
-
 """
     Fonction principale exécutant le menu interactif de simulations d'options.
 
@@ -48,8 +45,9 @@ def main():
     
     ### Paramètres communs
     nb_simul_list = [1000, 3000, 5000, 8000, 13000, 25000, 40000, 65000, 120000, 500000] 
+    #nb_simul_list = [1000, 3000, 5000, 8000, 13000, 25000] 
     nb_simul_precis = 120000
-    valeurs_B = np.linspace(0.5, 1, 10)
+    valeurs_B = np.linspace(0.5, 1, 15)
     valeurs_sigma = np.linspace(0, 0.8, 15)
     valeurs_delta = [3, 1, 1/4, 1/12, 1/52, 1/100, 1/250, 1/275, 1/300]
     
@@ -110,7 +108,7 @@ def main():
 
     elif choix =='13':
         # Comparaison option barriere P_DO avec et sans variable de controle en fonction du nombre de trajectoires
-        comparer_VC_et_sans_VC(nb_simul_list, S0=1, r=0.015, T=2, sigma=0.15, K=1, alph=0.1, delta = 1/100 ,B = 0.7, m_covariance = False, r_variance = True)
+        comparer_VC_et_sans_VC(nb_simul_list, S0=1, r=0.015, T=2, sigma=0.15, K=1, alph=0.1, delta = 1/100 ,B = 0.7, m_covariance = False, r_variance = False)
 
     elif choix =='14':
         # Comparaison des intervalles de confiance des estimations du prix d'une option barriere avec et sans VC en fonction de B

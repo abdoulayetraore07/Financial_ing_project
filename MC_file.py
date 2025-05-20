@@ -58,8 +58,15 @@ def get_S_path(nb_simul, S0=1, r=0.015, T=2, sigma=0.15, delta = 1/52, m_covaria
         if r_variance:
             S_path_neg  = S0 * np.exp( (r - (sigma**2)/2) * T_path + sigma*(-gaussien_W_path) )
 
+    # Ajout de la valeur initiale S0 en début de trajectoire
+    S0_vec = S0 * np.ones((nb_simul, 1))
+    S_path = np.concatenate((S0_vec, S_path), axis=1)
+
     #Conditionnement pour avoir une formule plus compacte 
-    S_path_neg =  S_path_neg*(r_variance==True) + S_path*(r_variance==False)
+    if r_variance:
+        S_path_neg = np.concatenate((S0_vec, S_path_neg), axis=1)
+    else:
+        S_path_neg = S_path
 
     return S_path, S_path_neg
 
@@ -379,6 +386,64 @@ def comparer_sigma(valeurs_sigma, nb_simul = 120000, S0 = 1, comparer = False):
 
 
 
+
+"""
+def correction_discretisation(S_path, B=0.7, sigma=0.15, delta=1/52 , r= 0.015):
+    
+    nb_simul, N_delta= S_path.shape[0], S_path.shape[1]
+    barriere_atteinte = np.zeros(nb_simul, dtype=int)
+    
+    for i in range(nb_simul):
+        proba_total_traject = 1
+            
+        for j in range(N_delta-1):
+            # Si déjà touché la barrière ou si les prix sont inférieurs à la barrière
+            if S_path[i, j] <= B or S_path[i, j+1] <= B:
+                proba_total_traject = 0
+                break
+            
+            # Cas ou on descends pas en dessous de B pour les extrémités
+            h = np.log( S_path[i, j]/B  + delta*(r-sigma**2/2) ) *  np.log(S_path[i, j+1]/B)  #
+
+            # Probabilité de franchissement avec le pont brownien
+            proba_total_traject *= (1 - np.exp(-2 * h / (sigma**2 * delta)))
+            
+        barriere_atteinte[i] = proba_total_traject
+
+    return barriere_atteinte  
+
+
+
+
+def correction_discretisation(S_path, B=0.7, sigma=0.15, delta=1/52):
+    nb_simul, N_delta= S_path.shape[0], S_path.shape[1]
+    barriere_atteinte = np.zeros(nb_simul, dtype=bool)
+    
+    for i in range(nb_simul):
+        for j in range(N_delta-1):
+            # Si déjà touché la barrière ou si les prix sont inférieurs à la barrière
+            if barriere_atteinte[i] or S_path[i, j] <= B or S_path[i, j+1] <= B:
+                barriere_atteinte[i] = True
+                break
+            
+            # Cas ou on descends pas en dessous de B pour les extrémités
+            h = np.log( S_path[i, j]/B) * np.log( S_path[i, j+1]/B)
+
+            # Probabilité de franchissement avec le pont brownien
+            p_barriere = np.exp(-2 * h / (sigma**2 * delta))
+            if random.uniform(0.0, 1.0) < p_barriere:
+                barriere_atteinte[i] = True
+                break
+
+    barriere_non_atteinte = ~barriere_atteinte # True pour les chemins qui n'ont pas touché la barrière, juste pratique pour la suite
+
+    return barriere_non_atteinte  
+"""
+
+
+
+
+    
 # ========================================
 # Corrige la discrétisation d'une barrière en calculant
 # la probabilité de franchissement via un pont brownien
@@ -408,59 +473,6 @@ def correction_discretisation(S_path, B=0.7, sigma=0.15, delta=1/52 , r= 0.015):
                 break
             
             # Cas ou on descends pas en dessous de B pour les extrémités
-            h = np.log( S_path[i, j]/B  + delta*(r-sigma**2/2) ) *  np.log(S_path[i, j+1]/B)  #
-
-            # Probabilité de franchissement avec le pont brownien
-            proba_total_traject *= (1 - np.exp(-2 * h / (sigma**2 * delta)))
-            
-        barriere_atteinte[i] = proba_total_traject
-
-    return barriere_atteinte  
-
-
-
-"""
-def correction_discretisation(S_path, B=0.7, sigma=0.15, delta=1/52):
-    nb_simul, N_delta= S_path.shape[0], S_path.shape[1]
-    barriere_atteinte = np.zeros(nb_simul, dtype=bool)
-    
-    for i in range(nb_simul):
-        for j in range(N_delta-1):
-            # Si déjà touché la barrière ou si les prix sont inférieurs à la barrière
-            if barriere_atteinte[i] or S_path[i, j] <= B or S_path[i, j+1] <= B:
-                barriere_atteinte[i] = True
-                break
-            
-            # Cas ou on descends pas en dessous de B pour les extrémités
-            h = np.log( S_path[i, j]/B) * np.log( S_path[i, j+1]/B)
-
-            # Probabilité de franchissement avec le pont brownien
-            p_barriere = np.exp(-2 * h / (sigma**2 * delta))
-            if random.uniform(0.0, 1.0) < p_barriere:
-                barriere_atteinte[i] = True
-                break
-
-    barriere_non_atteinte = ~barriere_atteinte # True pour les chemins qui n'ont pas touché la barrière, juste pratique pour la suite
-
-    return barriere_non_atteinte  
-
-    
-
-def correction_discretisation(S_path, B=0.7, sigma=0.15, delta=1/52 , r= 0.015):
-    
-    nb_simul, N_delta= S_path.shape[0], S_path.shape[1]
-    barriere_atteinte = np.zeros(nb_simul, dtype=int)
-    
-    for i in range(nb_simul):
-        proba_total_traject = 1
-            
-        for j in range(N_delta-1):
-            # Si déjà touché la barrière ou si les prix sont inférieurs à la barrière
-            if S_path[i, j] <= B or S_path[i, j+1] <= B:
-                proba_total_traject = 0
-                break
-            
-            # Cas ou on descends pas en dessous de B pour les extrémités
             h = np.log( S_path[i, j]/B ) *  np.log(S_path[i, j+1]/B)  #
 
             # Probabilité de franchissement avec le pont brownien
@@ -469,7 +481,7 @@ def correction_discretisation(S_path, B=0.7, sigma=0.15, delta=1/52 , r= 0.015):
         barriere_atteinte[i] = proba_total_traject
 
     return barriere_atteinte  
-"""
+
 
 
 
@@ -853,7 +865,7 @@ def discriminant_VC (valeurs_B, nb_simul= 120000,  S0=1, r=0.015, T=2, sigma=0.1
                  label="Intervalle de confiance 90% (méthode 1)")
     """
     
-    plt.plot(valeurs_B, prices_2, label="Intervalle confiance du prix estimé de l'option P_DO avec VC en fonction de B", color="green", marker='o')
+    plt.plot(valeurs_B, prices_2, label="Prix estimé de l'option P_DO avec VC en fonction de B", color="green", marker='o')
     plt.fill_between(valeurs_B, lower_bounds_2, upper_bounds_2, 
                  color="green", alpha=0.2, 
                  edgecolor="black", linewidth=1.5,
