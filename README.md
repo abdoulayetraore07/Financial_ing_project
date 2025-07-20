@@ -7,7 +7,7 @@ The project demonstrates the influence of observation discretization and the use
 
 ---
 
-## 🛠️ Features
+## Features
  **Analytical pricing** – Exact computation of option prices using Black-Scholes formulas  
  **Monte Carlo simulation** – Implementation of classical Monte Carlo and variance reduction methods  
  **Barrier options** – Support for Down & Out and Down & In options  
@@ -18,7 +18,7 @@ The project demonstrates the influence of observation discretization and the use
 
 ---
 
-##  Project Structure
+## Project Structure
 
 ```
 /Financial_ing_project
@@ -29,7 +29,7 @@ The project demonstrates the influence of observation discretization and the use
 ```
 
 
-##  Implemented Models and Methods
+## Implemented Models and Methods
 
 ### European Options
 - Analytical pricing of a vanilla European option using the Black-Scholes model
