@@ -1,4 +1,4 @@
-# 💹 Financial Engineering Project: Barrier Options
+# Financial Engineering Project: Barrier Options
 
 ## 📌 Description
 This project implements different pricing methods for barrier options within the Black-Scholes model. Developed for the PRB209 course, this work explores both analytical solutions and Monte Carlo simulation methods for pricing standard European options and barrier options (Down & Out, Down & In).
